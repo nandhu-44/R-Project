@@ -1,13 +1,14 @@
 import os
 import pandas as pd
 
+
 # Function to extract headers from CSV files
 def extract_headers(directory):
     headers_info = {}
 
     # Loop through each file in the directory
     for filename in os.listdir(directory):
-        if filename.endswith('.csv'):
+        if filename.endswith(".csv"):
             file_path = os.path.join(directory, filename)
             try:
                 # Read the CSV file and get the headers
@@ -18,10 +19,14 @@ def extract_headers(directory):
 
     return headers_info
 
+
 # Main function
 def main():
     # Specify the directories to look for CSV files
-    directories = ['cyclone_dataset', 'temp_dataset']  # Add any other directories as needed
+    directories = [
+        "cyclone_dataset",
+        "temp_dataset",
+    ]  # Add any other directories as needed
 
     all_headers = {}
 
@@ -35,6 +40,7 @@ def main():
         print(f"\nHeaders in directory '{dir_name}':")
         for file_name, header in headers.items():
             print(f"{file_name}: {header}")
+
 
 # Run the main function
 if __name__ == "__main__":
