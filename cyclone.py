@@ -1,8 +1,12 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+<<<<<<< HEAD
 import seaborn as sns
 import geopandas as gpd
 from shapely.geometry import Point
+=======
+import seaborn as sns # type: ignore
+>>>>>>> c22b0d6d1f29a2f1d4690aa18ac28ea829163e1b
 
 
 # Load the data files
