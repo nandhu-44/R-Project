@@ -1,6 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import geopandas as gpd
+from shapely.geometry import Point
 
 
 # Load the data files
@@ -159,7 +161,64 @@ def plot_monthly_heatmap(seasonal_cd_monsoon):
     plt.show()
 
 
-# Plot 5: Cyclonic Disturbances vs Severe Cyclones (Monsoon Season)
+# Plot 5: Monthly Heatmap of Cyclonic Activity on Map
+def plot_monthly_overlay_on_map(seasonal_cd_monsoon):
+    # Load and filter the India shapefile
+    india_map = gpd.read_file("shapefile/ne_110m_admin_0_countries.shp")
+    india_map = india_map[india_map["ADMIN"] == "India"]
+
+    # Prepare heatmap data (averaged by month for simplicity)
+    months = ["June", "July", "August", "September"]
+    month_columns = [f"{month}: TOTAL" for month in months]
+
+    # Average monthly data over the years starting from 2000
+    heatmap_data = {}
+    for month in months:
+        heatmap_data[month] = seasonal_cd_monsoon[seasonal_cd_monsoon["Year"] >= 2000][
+            f"{month}: TOTAL"
+        ].mean()
+
+    # Map month color intensity based on cyclonic activity levels
+    colors = {
+        "June": "Red",
+        "July": "Orange",
+        "August": "Yellow",
+        "September": "Purple",
+    }
+
+    # Plot the map and add month overlays
+    fig, ax = plt.subplots(figsize=(10, 10))
+    india_map.plot(ax=ax, color="white", edgecolor="black")
+    ax.set_title("Monthly Cyclonic Activity Overlay on India Map (2000 onward)")
+
+    for i, month in enumerate(months):
+        alpha_value = heatmap_data[month] / max(
+            heatmap_data.values()
+        )  # Normalize for alpha intensity
+        india_map.plot(
+            ax=ax,
+            color=colors[month],
+            alpha=alpha_value * 0.6,
+            edgecolor="none",
+            legend=True,
+        )
+
+    # Add a custom legend
+    legend_labels = [
+        f"{month}: {round(heatmap_data[month], 1)} avg" for month in months
+    ]
+    handles = [
+        plt.Line2D(
+            [0], [0], color=plt.cm.get_cmap(colors[month])(0.6), lw=4, label=label
+        )
+        for month, label in zip(months, legend_labels)
+    ]
+    ax.legend(handles=handles, loc="upper left", title="Average Cyclonic Activity")
+
+    plt.show()
+
+
+# Plot 6: Cyclonic Disturbances vs Severe Cyclones (Monsoon Season)
 def plot_disturbances_vs_severe_monsoon(seasonal_cd_monsoon, seasonal_sc_monsoon):
     plt.figure(figsize=(12, 6))
     plt.plot(
@@ -182,6 +241,94 @@ def plot_disturbances_vs_severe_monsoon(seasonal_cd_monsoon, seasonal_sc_monsoon
     plt.show()
 
 
+# Plot 3: Seasonal Cyclonic Disturbances by Region (Heatmap on India Map)
+# Plot 3: Seasonal Cyclonic Disturbances by Region (Heatmap on World Map)
+def plot_seasonal_disturbances_by_region_map_world(
+    seasonal_cd_pre, seasonal_cd_monsoon, seasonal_cd_post
+):
+    # Sum the total disturbances across all years for each season and region
+    pre_monsoon_data = (
+        seasonal_cd_pre[["March: BOB", "March: AS", "March: LAND"]].sum().values
+    )
+    monsoon_data = (
+        seasonal_cd_monsoon[["June: BOB", "June: AS", "June: LAND"]].sum().values
+    )
+    post_monsoon_data = (
+        seasonal_cd_post[["October: BOB", "October: AS", "October: LAND"]].sum().values
+    )
+
+    # Prepare heatmap data by region
+    heatmap_data = {
+        "Bay of Bengal": sum(
+            [pre_monsoon_data[0], monsoon_data[0], post_monsoon_data[0]]
+        ),
+        "Arabian Sea": sum(
+            [pre_monsoon_data[1], monsoon_data[1], post_monsoon_data[1]]
+        ),
+        "LAND": sum([pre_monsoon_data[2], monsoon_data[2], post_monsoon_data[2]]),
+    }
+
+    # Load the world shapefile
+    world_map = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres"))
+
+    # Plot the world map with a focus on the Indian Ocean region
+    fig, ax = plt.subplots(figsize=(12, 10))
+    world_map.plot(ax=ax, color="lightgray", edgecolor="black")
+    ax.set_xlim(50, 100)  # Longitudes around India and the adjacent seas
+    ax.set_ylim(-10, 30)  # Latitudes around the Indian subcontinent
+
+    # Define polygons for Bay of Bengal, Arabian Sea, and central India (LAND)
+    bay_of_bengal_poly = gpd.GeoSeries(
+        [Point(90, 15).buffer(5)]
+    )  # Approximate Bay of Bengal area
+    arabian_sea_poly = gpd.GeoSeries(
+        [Point(65, 15).buffer(5)]
+    )  # Approximate Arabian Sea area
+    land_poly = gpd.GeoSeries(
+        [Point(78, 23).buffer(5)]
+    )  # Approximate LAND area (central India)
+
+    # Normalize the intensity for each region to set the transparency
+    max_intensity = max(heatmap_data.values())
+    colors = {"Bay of Bengal": "blue", "Arabian Sea": "green", "LAND": "orange"}
+    alpha_values = {
+        region: heatmap_data[region] / max_intensity for region in heatmap_data
+    }
+
+    # Plot each region with its corresponding color and alpha transparency
+    bay_of_bengal_poly.plot(
+        ax=ax, color=colors["Bay of Bengal"], alpha=alpha_values["Bay of Bengal"]
+    )
+    arabian_sea_poly.plot(
+        ax=ax, color=colors["Arabian Sea"], alpha=alpha_values["Arabian Sea"]
+    )
+    land_poly.plot(ax=ax, color=colors["LAND"], alpha=alpha_values["LAND"])
+
+    # Add a legend to represent intensity by region
+    legend_labels = [
+        f"{region}: {round(heatmap_data[region], 1)} total" for region in heatmap_data
+    ]
+    handles = [
+        plt.Line2D(
+            [0],
+            [0],
+            color=colors[region],
+            lw=6,
+            alpha=alpha_values[region],
+            label=label,
+        )
+        for region, label in zip(heatmap_data.keys(), legend_labels)
+    ]
+    ax.legend(
+        handles=handles, loc="upper left", title="Cyclonic Disturbances by Region"
+    )
+
+    plt.title(
+        "Total Seasonal Cyclonic Disturbances by Region on World Map (Bay of Bengal, Arabian Sea, LAND)"
+    )
+    plt.show()
+
+
 # Menu logic
 def display_menu():
     print("\nCyclone Dataset Visualization")
@@ -189,7 +336,9 @@ def display_menu():
     print("2. Plot Annual vs Seasonal Cyclonic Disturbances")
     print("3. Plot Seasonal Cyclonic Disturbances by Region")
     print("4. Plot Monthly Heatmap of Cyclonic Activity")
-    print("5. Plot Cyclonic Disturbances vs Severe Cyclones (Monsoon)")
+    print("5. Plot Monthly Heatmap of Cyclonic Activity on Map")
+    print("6. Plot Cyclonic Disturbances vs Severe Cyclones (Monsoon)")
+    print("7. Plot Seasonal Cyclonic Disturbances by Region on Map")
     print("0. Exit")
 
 
@@ -228,8 +377,14 @@ def main():
         elif choice == "4":
             plot_monthly_heatmap(seasonal_cd_monsoon)
         elif choice == "5":
+            plot_monthly_overlay_on_map(seasonal_cd_monsoon)
+        elif choice == "6":
             plot_disturbances_vs_severe_monsoon(
                 seasonal_cd_monsoon, seasonal_sc_monsoon
+            )
+        elif choice == "7":
+            plot_seasonal_disturbances_by_region_map_world(
+                seasonal_cd_pre, seasonal_cd_monsoon, seasonal_cd_post
             )
         elif choice == "0":
             print("Exiting...")
